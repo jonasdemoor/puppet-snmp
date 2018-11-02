@@ -120,6 +120,7 @@ class snmp::params {
           }
         }
       }
+      $snmptrapd_package_name   = undef
       $package_name             = 'net-snmp'
       $service_config           = '/etc/snmp/snmpd.conf'
       $service_config_dir_group = 'root'
@@ -145,6 +146,7 @@ class snmp::params {
         $varnetsnmp_group       = 'snmp'
       }
       $package_name             = 'snmpd'
+      $snmptrapd_package_name   = 'snmptrapd'
       $service_config           = '/etc/snmp/snmpd.conf'
       $service_config_perms     = '0600'
       $service_config_dir_group = 'root'
@@ -163,6 +165,7 @@ class snmp::params {
     }
     'Suse': {
       $package_name             = 'net-snmp'
+      $snmptrapd_package_name   = undef
       $service_config           = '/etc/snmp/snmpd.conf'
       $service_config_perms     = '0600'
       $service_config_dir_group = 'root'
@@ -183,6 +186,7 @@ class snmp::params {
     }
     'FreeBSD': {
       $package_name             = 'net-mgmt/net-snmp'
+      $snmptrapd_package_name   = undef
       $service_config_dir_path  = '/usr/local/etc/snmp'
       $service_config_dir_perms = '0755'
       $service_config_dir_owner = 'root'
@@ -205,6 +209,7 @@ class snmp::params {
     }
     'OpenBSD': {
       $package_name             = 'net-snmp'
+      $snmptrapd_package_name   = undef
       $service_config_dir_path  = '/etc/snmp'
       $service_config_dir_perms = '0755'
       $service_config_dir_owner = 'root'
