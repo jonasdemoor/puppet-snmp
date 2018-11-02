@@ -347,7 +347,7 @@ class snmp (
   Boolean $service_enable       = $snmp::params::service_enable,
   Boolean $service_hasstatus    = $snmp::params::service_hasstatus,
   Boolean $service_hasrestart   = $snmp::params::service_hasrestart,
-  $snmptrapd_options            = $snmp::params::snmptrapd_options,
+  Optional[String] $snmptrapd_options = $snmp::params::snmptrapd_options,
   Stdlib::Ensure::Service $trap_service_ensure = $snmp::params::trap_service_ensure,
   $trap_service_name            = $snmp::params::trap_service_name,
   $trap_service_enable          = $snmp::params::trap_service_enable,
@@ -376,16 +376,8 @@ class snmp (
     $file_ensure = 'present'
     $trap_service_ensure_real = $trap_service_ensure
     $trap_service_enable_real = $trap_service_enable
-
-    # Make sure that if $trap_service_ensure == 'running' that
-    # $service_ensure_real == 'running' on Debian.
-    if ($facts['os']['family'] == 'Debian') and ($trap_service_ensure_real == 'running') {
-      $service_ensure_real = $trap_service_ensure_real
-      $service_enable_real = $trap_service_enable_real
-    } else {
-      $service_ensure_real = $service_ensure
-      $service_enable_real = $service_enable
-    }
+    $service_ensure_real = $service_ensure
+    $service_enable_real = $service_enable
   } else {
     $package_ensure = 'absent'
     $file_ensure = 'absent'
@@ -393,17 +385,6 @@ class snmp (
     $service_enable_real = false
     $trap_service_ensure_real = 'stopped'
     $trap_service_enable_real = false
-  }
-
-  if $service_ensure == 'running' {
-    $snmpdrun = 'yes'
-  } else {
-    $snmpdrun = 'no'
-  }
-  if $trap_service_ensure == 'running' {
-    $trapdrun = 'yes'
-  } else {
-    $trapdrun = 'no'
   }
 
   if $manage_client {
@@ -484,8 +465,7 @@ class snmp (
     require => Package[$require_snmptrapd_package],
   }
 
-
-  unless $facts['os']['family'] == 'FreeBSD' or $facts['os']['family'] == 'OpenBSD' {
+  if $snmp::params::sysconfig {
     file { 'snmpd.sysconfig':
       ensure  => $file_ensure,
       mode    => '0644',
@@ -498,7 +478,17 @@ class snmp (
     }
   }
 
-  if $facts['os']['family'] == 'RedHat' {
+  # If your os has a sysconfig style config for trap, it will be
+  # created here (if there is a separate package for snmptrapd, we'll
+  # depend on that!)
+  if $snmp::params::trap_sysconfig {
+    if $snmp::params::snmptrapd_package_name {
+      $snmptrapd_sysconfig_require = Package['snmptrapd']
+    }
+    else {
+      $snmptrapd_sysconfig_require = Package['snmpd']
+    }
+
     file { 'snmptrapd.sysconfig':
       ensure  => $file_ensure,
       mode    => '0644',
@@ -506,22 +496,20 @@ class snmp (
       group   => 'root',
       path    => $snmp::params::trap_sysconfig,
       content => template($template_snmptrapd_sysconfig),
-      require => Package['snmpd'],
+      require => $snmptrapd_sysconfig_require,
       notify  => Service['snmptrapd'],
     }
   }
 
   # Services
-  unless $facts['os']['family'] == 'Debian' {
-    service { 'snmptrapd':
-      ensure     => $trap_service_ensure_real,
-      name       => $trap_service_name,
-      enable     => $trap_service_enable_real,
-      hasstatus  => $trap_service_hasstatus,
-      hasrestart => $trap_service_hasrestart,
-      require    => File['var-net-snmp'],
-      subscribe  => File['snmptrapd.conf'],
-    }
+  service { 'snmptrapd':
+    ensure     => $trap_service_ensure_real,
+    name       => $trap_service_name,
+    enable     => $trap_service_enable_real,
+    hasstatus  => $trap_service_hasstatus,
+    hasrestart => $trap_service_hasrestart,
+    require    => File['var-net-snmp'],
+    subscribe  => File['snmptrapd.conf'],
   }
 
   service { 'snmpd':
@@ -534,7 +522,4 @@ class snmp (
     subscribe  => File['snmpd.conf'],
   }
 
-  if $facts['os']['family'] == 'Debian' {
-    File['snmptrapd.conf'] ~> Service['snmpd']
-  }
 }
